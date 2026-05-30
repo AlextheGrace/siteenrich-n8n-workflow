@@ -24,7 +24,9 @@ This workflow runs a cheap website enrichment check first. Only companies with a
 
 ### 1. Get a SiteEnrich API key
 
-Sign up for a free 7-day trial at [siteenrich.io](https://siteenrich.io)
+Sign up for a free 7-day trial at [siteenrich.io](https://siteenrich.io) — takes 30 seconds, no credit card needed.
+
+> **Note:** The workflow requires a SiteEnrich API key to run. Without it the HTTP Request node returns 401 and no enrichment happens. Get your free 7-day trial key at [siteenrich.io](https://siteenrich.io) before proceeding.
 
 ### 2. Import the workflow
 
@@ -69,6 +71,34 @@ After the IF node, add a Filter node to only pass companies where:
 - `hasPricingPage` is TRUE
 
 This gives you companies that are actively hiring and have a real product - your best Apollo targets.
+
+## Advanced: Normalize the response envelope
+
+For better observability add a Set node after the HTTP Request to normalize the response before the IF node:
+
+```
+ok: {{ $json.error === null }}
+reason_code: {{ $json.error ?? 'success' }}
+normalized_domain: {{ $json.domain }}
+```
+
+Branch on `ok` instead of the raw error field. This makes the enrichment provider replaceable without touching downstream logic.
+
+## Advanced: Cache layer
+
+To avoid paying for the same domain twice, add a cache check before the HTTP Request:
+- Normalize the URL to hostname only (lowercase, strip www, drop query params)
+- Check a Google Sheet or database for a recent result
+- Only call SiteEnrich on cache misses
+
+Use an `enrichment_version` string like `icp-v3` to invalidate cached scores when your qualification rules change.
+
+## Advanced: Manual review bucket
+
+Instead of dropping low-confidence results, route them to a separate sheet:
+- Has about page but no careers or pricing → manual review
+- HTTP timeout → retry queue
+- DNS failed → dead domain bucket
 
 ## API pricing
 
