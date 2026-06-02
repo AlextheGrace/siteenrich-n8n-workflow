@@ -5,7 +5,10 @@
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "a10c67ae-5558-4739-ab5f-6bb2c7a55d88",
       "name": "When clicking 'Execute workflow'"
     },
@@ -27,7 +30,10 @@
       },
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
-      "position": [208, 0],
+      "position": [
+        208,
+        0
+      ],
       "id": "f05caaab-5d8c-49eb-9f3d-b5e6d277ef01",
       "name": "Get row(s) in sheet",
       "credentials": {
@@ -53,7 +59,10 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [416, 0],
+      "position": [
+        416,
+        0
+      ],
       "id": "a18c451f-932e-49f1-a22d-133efd0b9c14",
       "name": "HTTP Request"
     },
@@ -84,7 +93,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [624, 0],
+      "position": [
+        624,
+        0
+      ],
       "id": "fa88c587-ece5-4791-9160-9ffd3a5e087c",
       "name": "If"
     },
@@ -115,12 +127,60 @@
           },
           "matchingColumns": [],
           "schema": [
-            {"id": "domain", "displayName": "domain", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
-            {"id": "companyName", "displayName": "companyName", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
-            {"id": "emails", "displayName": "emails", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
-            {"id": "hasCareersPage", "displayName": "hasCareersPage", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
-            {"id": "hasPricingPage", "displayName": "hasPricingPage", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
-            {"id": "socials", "displayName": "socials", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}
+            {
+              "id": "domain",
+              "displayName": "domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyName",
+              "displayName": "companyName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emails",
+              "displayName": "emails",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasCareersPage",
+              "displayName": "hasCareersPage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hasPricingPage",
+              "displayName": "hasPricingPage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "socials",
+              "displayName": "socials",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
           ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
@@ -129,7 +189,10 @@
       },
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
-      "position": [832, -96],
+      "position": [
+        832,
+        -96
+      ],
       "id": "6623f9e2-6f6c-4032-9071-9f118731e7da",
       "name": "Append row in sheet",
       "credentials": {
@@ -138,21 +201,156 @@
           "name": "Google Sheets OAuth2 API"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENAI_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a B2B company classifier. Given the website signals of a company, classify it into exactly ONE of these categories: saas_b2b, saas_b2c, agency, marketing_tool, lead_gen_tool, consulting, manufacturer, ecommerce, marketplace, professional_services, parked, unknown. Return JSON with: category (one of the categories above), confidence (0-1 number, be conservative \\u2014 only use >0.85 when website signals are unambiguous), signals (2-4 short strings listing the specific evidence you used), and uncertainty_reason (string explaining what made you uncertain, or null if confidence > 0.85). Categories agency/marketing_tool/lead_gen_tool are 'meta-prospects' \\u2014 companies that themselves sell to B2B, so flag them honestly even if the site looks professional.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Domain: {{ $json.domain || 'unknown' }}\\nCompany name: {{ $json.companyName || 'unknown' }}\\nHas careers page: {{ ($json.signals && $json.signals.hasCareersPage) ? 'true' : 'false' }}\\nHas pricing page: {{ ($json.signals && $json.signals.hasPricingPage) ? 'true' : 'false' }}\\nEmails found: {{ ($json.emails || []).join(', ') || 'none' }}\\nSocials: {{ ($json.socials || []).join(', ') || 'none' }}\"\n    }\n  ],\n  \"response_format\": {\n    \"type\": \"json_schema\",\n    \"json_schema\": {\n      \"name\": \"company_classification\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"category\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"saas_b2b\",\n              \"saas_b2c\",\n              \"agency\",\n              \"marketing_tool\",\n              \"lead_gen_tool\",\n              \"consulting\",\n              \"manufacturer\",\n              \"ecommerce\",\n              \"marketplace\",\n              \"professional_services\",\n              \"parked\",\n              \"unknown\"\n            ]\n          },\n          \"confidence\": {\n            \"type\": \"number\",\n            \"minimum\": 0,\n            \"maximum\": 1\n          },\n          \"signals\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            },\n            \"minItems\": 1,\n            \"maxItems\": 6\n          },\n          \"uncertainty_reason\": {\n            \"type\": [\n              \"string\",\n              \"null\"\n            ]\n          }\n        },\n        \"required\": [\n          \"category\",\n          \"confidence\",\n          \"signals\",\n          \"uncertainty_reason\"\n        ],\n        \"additionalProperties\": false\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        192
+      ],
+      "id": "10d8ebc1-221a-47eb-83f1-ee434de97ddb",
+      "name": "Classify with gpt-4o-mini"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "94f3f75a-edb3-45ea-bfff-5f3feab61b67",
+              "name": "classification",
+              "value": "={{ JSON.parse($json.choices[0].message.content) }}",
+              "type": "object"
+            },
+            {
+              "id": "181cc781-ccd3-4fc3-9a0d-f218db6984e2",
+              "name": "category",
+              "value": "={{ JSON.parse($json.choices[0].message.content).category }}",
+              "type": "string"
+            },
+            {
+              "id": "42f43647-09d7-47e5-9f43-f34c61c72c10",
+              "name": "confidence",
+              "value": "={{ JSON.parse($json.choices[0].message.content).confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "14521e5d-c617-4aff-85f7-03f68c9cedcb",
+              "name": "is_negative_signal",
+              "value": "={{ [\"agency\", \"marketing_tool\", \"lead_gen_tool\"].includes(JSON.parse($json.choices[0].message.content).category) }}",
+              "type": "boolean"
+            },
+            {
+              "id": "4e22fdb6-7e55-4a80-a91e-5046672e7ad7",
+              "name": "apollo_tier",
+              "value": "={{ [\"agency\", \"marketing_tool\", \"lead_gen_tool\"].includes(JSON.parse($json.choices[0].message.content).category) ? 'skip' : JSON.parse($json.choices[0].message.content).confidence > 0.85 ? 'narrow' : JSON.parse($json.choices[0].message.content).confidence > 0.65 ? 'broader' : JSON.parse($json.choices[0].message.content).confidence > 0.5 ? 'broadest' : 'skip' }}",
+              "type": "string"
+            },
+            {
+              "id": "9d572c5b-32b1-4956-b2c5-96fe406c8656",
+              "name": "is_skip",
+              "value": "={{ [\"agency\", \"marketing_tool\", \"lead_gen_tool\"].includes(JSON.parse($json.choices[0].message.content).category) || JSON.parse($json.choices[0].message.content).confidence < 0.5 }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        192
+      ],
+      "id": "b0d0b587-7530-46dd-bc87-789565faf9db",
+      "name": "Tier by confidence"
     }
   ],
   "pinData": {},
   "connections": {
     "When clicking 'Execute workflow'": {
-      "main": [[{"node": "Get row(s) in sheet", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get row(s) in sheet": {
-      "main": [[{"node": "HTTP Request", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "HTTP Request": {
-      "main": [[{"node": "If", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Classify with gpt-4o-mini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "If": {
-      "main": [[{"node": "Append row in sheet", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify with gpt-4o-mini": {
+      "main": [
+        [
+          {
+            "node": "Tier by confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
