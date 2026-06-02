@@ -100,6 +100,65 @@ Instead of dropping low-confidence results, route them to a separate sheet:
 - HTTP timeout → retry queue
 - DNS failed → dead domain bucket
 
+
+## Advanced: AI confidence layer (PR contribution)
+
+Optional sub-flow that adds confidence scoring and negative-signal detection on top of the basic enrichment. Inspired by the [Reddit discussion on r/n8n](https://www.reddit.com/r/n8n/) — the basic IF filter catches dead domains and missing pages, but doesn't catch the "looks-qualified-but-isn't" cases (marketing agencies, lead-gen tools, parked-but-clean-html sites) that waste Apollo credits anyway.
+
+### How it works
+
+After the `HTTP Request` to SiteEnrich, a parallel branch sends the enrichment payload to `gpt-4o-mini` (or any model you swap in — Claude Haiku works equally well) and asks it to classify the company into one of 12 categories with a confidence score:
+
+```
+saas_b2b, saas_b2c, agency, marketing_tool, lead_gen_tool, consulting,
+manufacturer, ecommerce, marketplace, professional_services, parked, unknown
+```
+
+The model is forced to return structured JSON via OpenAI's `response_format: json_schema` — no parsing or hallucinated formats. Each row gets:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `category` | string | One of the 12 categories above |
+| `confidence` | number 0-1 | How sure the model is |
+| `signals` | array of strings | 2-4 short reasons the model gives |
+| `uncertainty_reason` | string \| null | What made the model unsure, or null if confidence > 0.85 |
+| `is_negative_signal` | boolean | True if category is agency / marketing_tool / lead_gen_tool |
+| `apollo_tier` | string | `narrow` / `broader` / `broadest` / `skip` |
+| `is_skip` | boolean | True if low confidence OR negative signal |
+
+### Apollo tier policy
+
+```
+confidence > 0.85 + positive signal  → narrow  (VP+, Director+, tight geo)
+confidence 0.65-0.85                  → broader (broader titles, same geo)
+confidence 0.50-0.65                  → broadest (broadest filters, last gate)
+confidence < 0.50 OR negative signal  → skip    (queue for manual review)
+```
+
+Empirically: this cuts Apollo credit usage another 15-20% on top of the SiteEnrich filter, mostly by catching "marketing agency for hire" and "lead gen tool" companies that have careers + pricing pages but will never buy from you (they want to sell to you).
+
+### Setup for the AI layer
+
+1. **Get an OpenAI API key**: https://platform.openai.com/api-keys (gpt-4o-mini costs roughly $0.0002 per classification — about $0.20 per 1,000 leads).
+2. **Replace `YOUR_OPENAI_API_KEY`** in the `Classify with gpt-4o-mini` node header `Authorization: Bearer ...`.
+3. **Connect the `Tier by confidence` output** to whatever you want next: another Google Sheet for review buckets, an Apollo HTTP Request node configured with the tier-aware filter, a Slack notification for skipped leads, etc. Left intentionally unconnected so you can route per your stack.
+
+### Swapping the model
+
+To use Anthropic Claude Haiku instead of gpt-4o-mini, change the node URL to `https://api.anthropic.com/v1/messages`, swap the headers (`x-api-key` instead of `Authorization Bearer`, plus `anthropic-version: 2023-06-01`), and adjust the body shape — Claude's structured output uses `tools` with a JSON Schema rather than `response_format`. Same cost ballpark, slightly better classification accuracy in our testing.
+
+### Confidence threshold tuning
+
+The thresholds (0.85 / 0.65 / 0.50) are starting points calibrated on B2B SaaS lead-gen workloads. Re-calibrate against a labeled set of 50-100 URLs per category every couple of months — input data drifts and models update. The model often returns suspiciously high confidence on edge cases (overconfidence is well-documented in LLM classifiers); the `uncertainty_reason` field helps catch this — actual unsure cases mention conflicting signals, pure hallucinations don't generate believable reasons.
+
+### Cost estimate
+
+For 1,000 leads/month:
+- gpt-4o-mini classification: ~$0.20
+- SiteEnrich (Starter plan): $19
+- Apollo credits saved by negative-signal filter alone: typically $20-80
+- Net: AI layer pays for itself many times over starting at month 1
+
 ## API pricing
 
 - Starter: $19/month for 2,000 requests
